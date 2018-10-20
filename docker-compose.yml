@@ -1,0 +1,49 @@
+version: '2'
+services:
+  teamcity-server:
+      image: jetbrains/teamcity-server
+      container_name: teamcity
+      restart: always
+      volumes:
+          - ./data/teamcity:/data/teamcity_server/datadir
+          - ./logs:/opt/teamcity/logs
+      environment:
+          TEAMCITY_SERVER_MEM_OPTS: -Xmx2g -XX:ReservedCodeCacheSize=350m
+      links:
+          - teamcity-db
+      ports:
+          - 8111:8111
+      depends_on:
+          - teamcity-db
+  teamcity-db:
+      image: mysql:5.7
+      container_name: teamcity-db
+      restart: always
+      volumes:
+          - ./data/db:/var/lib/mysql
+      environment:
+          MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+          MYSQL_DATABASE: ${DB_NAME}
+          MYSQL_PASSWORD: ${DB_PASSWORD}
+          MYSQL_USER: ${DB_USER}
+  teamcity-agent1:
+      image: jetbrains/teamcity-agent:2018.1.3
+      container_name: teamcity-agent1
+      restart: always
+      privileged: true
+      links:
+          - teamcity-server
+      volumes:
+          - ./data/agent1/conf:/data/teamcity_agent/conf
+          - ${SHARED_DOCKER_SOCK}:/var/run/docker.sock
+          - ./data/buildagent/work:/opt/buildagent/work
+          - ./data/buildagent/temp:/opt/buildagent/temp
+          - ./data/buildagent/tools:/opt/buildagent/tools
+          - ./data/buildagent/plugins:/opt/buildagent/plugins
+          - ./data/buildagent/system:/opt/buildagent/system
+      environment:
+          SERVER_URL: teamcity-server:8111
+          AGENT_NAME: agent1
+          DOCKER_IN_DOCKER: start
+      depends_on:
+          - teamcity-server
